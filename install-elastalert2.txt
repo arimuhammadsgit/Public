@@ -1,0 +1,170 @@
+#!/bin/bash
+
+set -e
+
+# Step 1: Update System and Install Dependencies
+sudo apt update -y
+sudo apt install -y git curl wget build-essential libssl-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev libffi-dev python3-venv python3-dev
+
+# Step 2: Download and Install Python 3.12 from Source
+cd /usr/src
+sudo wget https://www.python.org/ftp/python/3.12.2/Python-3.12.2.tgz
+sudo tar xvf Python-3.12.2.tgz
+cd Python-3.12.2
+sudo ./configure --enable-optimizations
+sudo make -j$(nproc)
+sudo make altinstall
+
+# Step 3: Set Python 3.12 as Default
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.12 1
+sudo update-alternatives --config python3  # Select Python 3.12 when prompted
+python3 --version  # Verify installation
+
+# Step 4: Install pip for Python 3.12
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
+python3.12 -m pip install --upgrade pip setuptools wheel
+
+# Step 5: Install Git (If Not Installed)
+sudo apt install -y git
+git --version  # Verify Git installation
+
+# Step 6: Clone and Set Up ElastAlert 2
+cd /etc
+git clone https://github.com/jertel/elastalert2.git
+cd elastalert2
+
+# Step 7: Create a Virtual Environment with Python 3.12
+rm -rf venv  # Ensure clean setup
+python3.12 -m venv venv
+source venv/bin/activate
+python -m ensurepip --upgrade
+python -m pip install --upgrade pip setuptools wheel
+
+# Step 8: Install ElastAlert Dependencies
+pip install -r requirements.txt
+pip install .
+
+deactivate
+
+# Step 9: Create the Configuration File
+mkdir -p /etc/elastalert2/rules
+cat <<EOL > /etc/elastalert2/config.yaml
+rules_folder: rules
+run_every:
+  seconds: 10
+buffer_time:
+  minutes: 1
+es_host: localhost
+es_port: 9200
+use_ssl: false
+verify_certs: false
+es_username: username # change
+es_password: password # change
+writeback_index: elastalert_status
+alert_time_limit:
+  days: 2
+EOL
+
+# Step 10: Create SSH Alert Rule
+cat <<EOL > /etc/elastalert2/rules/ssh.yaml
+name: "SSH Attack Alert"
+type: "frequency"
+index: "wazuh-alerts-4.x-*"
+
+is_enabled: true
+
+num_events: 1
+timeframe:
+  minutes: 5
+
+# ✅ Ensure we query logs using the correct timestamp field
+timestamp_field: "@timestamp"
+timestamp_type: "iso"
+timezone: "UTC"
+
+# ✅ Enable local time conversion for ElastAlert queries
+use_local_time: true
+
+realert:
+  minutes: 0  # Disable suppression
+
+filter:
+  - bool:
+      should:
+        - term:
+            rule.description: "sshd: Attempt to login using a non-existent user"
+        - term:
+            rule.description: "PAM: User login failed."
+      minimum_should_match: 1
+
+alert_subject: "🚨 SSH Attack Detected on {0} user {1} from {2} - {3} 🚨"
+alert_subject_args:
+  - "agent.name"
+  - "data.srcuser"
+  - "data.srcip"
+  - "rule.description"
+
+alert_text: |-
+  🔍 **SSH Attack Detected**
+  - **Host:** {0}
+  - **User:** {1}
+  - **Source IP:** {2}
+  - **Rule:** {3}
+  - **Timestamp (UTC):** {4}
+
+alert_text_args:
+  - "agent.name"
+  - "data.srcuser"
+  - "data.srcip"
+  - "rule.description"
+  - "@timestamp"
+
+alert_missing_value: "N/A"
+
+alert:
+  - "slack"
+slack_webhook_url:
+  - "https://hooks.slack.com/services/yourhook" # change
+slack_channel_override: "#soc-lab"
+slack_emoji_override: ":warning:"
+slack_msg_color: "danger"
+slack_parse_override: "full"
+slack_username_override: "ElastAlert"
+
+include:
+  - "agent.name"
+  - "data.srcuser"
+  - "data.srcip"
+  - "rule.description"
+  - "@timestamp"
+EOL
+
+# Step 11: Activate Virtual Environment and Create Elasticsearch Index
+source /etc/elastalert2/venv/bin/activate
+elastalert-create-index --config /etc/elastalert2/config.yaml
+deactivate
+
+# Step 12: Create a Systemd Service for ElastAlert
+cat <<EOL > /etc/systemd/system/elastalert.service
+[Unit]
+Description=ElastAlert Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/etc/elastalert2
+ExecStart=/bin/bash -c 'source /etc/elastalert2/venv/bin/activate && python -m elastalert.elastalert --config /etc/elastalert2/config.yaml'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+# Step 13: Start and Enable ElastAlert Service
+sudo systemctl daemon-reload
+sudo systemctl start elastalert.service
+sudo systemctl enable elastalert.service
+
+# Step 14: Check Service Status
+sudo systemctl status elastalert.service
