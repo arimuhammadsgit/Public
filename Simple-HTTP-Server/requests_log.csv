@@ -1,0 +1,6 @@
+RemoteAddr,Method,RequestURI,UserAgent,EventTime,HoneypotName
+[::1]:62304,GET,/,curl/8.11.0,1738575303,
+[::1]:62305,POST,/,curl/8.11.0,1738575303,
+[::1]:62306,GET,/,FakeBrowser/1.0,1738575303,
+[::1]:62307,PUT,/,curl/8.11.0,1738575303,
+[::1]:62308,DELETE,/,curl/8.11.0,1738575303,
