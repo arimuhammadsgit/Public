@@ -571,7 +571,9 @@ class Parsedown
     #
     # List
 
-    protected function blockList($Line, array $CurrentBlock = null)
+#    protected function blockList($Line, array $CurrentBlock = null)
+    protected function blockList(?array $CurrentBlock)
+
     {
         list($name, $pattern) = $Line['text'][0] <= '-' ? array('ul', '[*+-]') : array('ol', '[0-9]{1,9}+[.\)]');
 
