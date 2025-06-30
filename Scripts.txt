@@ -1,1 +1,6 @@
 aircrack-ng -a2 -b 22:7F:AC:6D:E6:8B -w /home/attacker/Desktop/Wordlist/password.txt '/home/attacker/Desktop/Sample Captures/WPA2crack-01.cap'
+
+sudo tee /etc/apt/sources.list > /dev/null <<EOF
+deb https://deb.parrotsec.org/parrot rolling main contrib non-free
+deb https://deb.parrotsec.org/parrot rolling-security main contrib non-free
+EOF
