@@ -19,4 +19,6 @@ done
 
 gobuster dir -u http://192.168.44.32:8080/DVWA/SecureWeb/prod/ -w /usr/share/wordlists/dirb/common.txt -x txt,php,b64 --no-error
 
-tshark -r ~/Documents/IoT\ Traffic\ Capture.pcapng -Y "mqtt.msgtype == 3" -T fields -e mqtt.topic
+tshark -r /home/attacker/Documents/IoT\ Traffic\ Capture.pcapng -Y "mqtt.msgtype == 3" -T fields -e mqtt.topic
+
+ffuf -u http://192.168.44.40/FUZZ.php?id=1 -w /usr/share/wordlists/dirb/common.txt -e .php
