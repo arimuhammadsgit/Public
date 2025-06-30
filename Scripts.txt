@@ -10,3 +10,9 @@ sudo apt install python3-pip chromium-driver -y
 pip3 install selenium
 
 nmap -iL live-hosts.txt -p 143,993 --script=banner -sV -oN mercury-scan.txt
+
+# s6
+for ip in $(grep Up live-hosts.txt | awk '{print $2}'); do
+    echo "[*] Scanning $ip"
+    nmap -sV -p 22,2222,23,21,80,443,8080,31337 $ip
+done
