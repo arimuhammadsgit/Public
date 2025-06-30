@@ -8,3 +8,5 @@ EOF
 sudo apt update
 sudo apt install python3-pip chromium-driver -y
 pip3 install selenium
+
+nmap -iL live-hosts.txt -p 143,993 --script=banner -sV -oN mercury-scan.txt
