@@ -16,3 +16,5 @@ for ip in $(grep Up live-hosts.txt | awk '{print $2}'); do
     echo "[*] Scanning $ip"
     nmap -sV -p 22,2222,23,21,80,443,8080,31337 $ip
 done
+
+gobuster dir -u http://192.168.44.32:8080/DVWA/SecureWeb/prod/ -w /usr/share/wordlists/dirb/common.txt -x txt,php,b64 --no-error
