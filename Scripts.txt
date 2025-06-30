@@ -4,3 +4,7 @@ sudo tee /etc/apt/sources.list > /dev/null <<EOF
 deb https://deb.parrotsec.org/parrot rolling main contrib non-free
 deb https://deb.parrotsec.org/parrot rolling-security main contrib non-free
 EOF
+
+sudo apt update
+sudo apt install python3-pip chromium-driver -y
+pip3 install selenium
