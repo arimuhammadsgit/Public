@@ -1,0 +1,5 @@
+device_name,hostname,username,password,device_type,protocol,port,timeout
+router1,192.168.1.1,admin,password,cisco_ios,ssh,22,120
+switch1,192.168.1.2,admin,password,cisco_ios,ssh,22,120
+linux1,192.168.1.10,root,password,linux,ssh,22,120
+firewall1,192.168.1.254,admin,admin123,cisco_asa,ssh,22,120

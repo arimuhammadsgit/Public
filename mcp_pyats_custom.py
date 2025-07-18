@@ -7,15 +7,67 @@ import sys
 import json
 import logging
 import textwrap
-from pyats.topology import loader
-from genie.libs.parser.utils import get_parser
-from dotenv import load_dotenv
-from pydantic import BaseModel, Field, ValidationError
 from typing import Dict, Any, Optional
 import asyncio
 from functools import partial
-import mcp.types as types
-from mcp.server.fastmcp import FastMCP
+from helpers.inventory_loader import load_device_from_csv, connect_to_device
+
+# Try to import optional dependencies
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    def load_dotenv():
+        pass
+
+try:
+    from pydantic import BaseModel, Field, ValidationError
+    PYDANTIC_AVAILABLE = True
+except ImportError:
+    PYDANTIC_AVAILABLE = False
+    # Mock pydantic classes for basic functionality
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    def Field(*args, **kwargs):
+        return None
+    
+    class ValidationError(Exception):
+        pass
+
+try:
+    import mcp.types as types
+    from mcp.server.fastmcp import FastMCP
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    # Mock MCP for testing
+    class MockFastMCP:
+        def __init__(self, name):
+            self.name = name
+            self.tools = []
+        
+        def tool(self):
+            def decorator(func):
+                self.tools.append(func)
+                return func
+            return decorator
+        
+        def run(self):
+            print(f"Mock MCP server {self.name} would run here")
+    
+    FastMCP = MockFastMCP
+    types = None
+
+try:
+    from genie.libs.parser.utils import get_parser
+    GENIE_AVAILABLE = True
+except ImportError:
+    GENIE_AVAILABLE = False
+    get_parser = None
 
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -23,13 +75,18 @@ logger = logging.getLogger("PyatsFastMCPServer")
 
 # --- Load Environment Variables ---
 load_dotenv()
-TESTBED_PATH = os.getenv("PYATS_TESTBED_PATH")
+# CSV inventory path - defaults to device_inventory.csv in current directory
+CSV_INVENTORY_PATH = os.getenv("DEVICE_INVENTORY_CSV", "device_inventory.csv")
 
-if not TESTBED_PATH or not os.path.exists(TESTBED_PATH):
-    logger.critical(f"❌ CRITICAL: PYATS_TESTBED_PATH environment variable not set or file not found: {TESTBED_PATH}")
-    sys.exit(1)
+logger.info(f"✅ Using CSV inventory file: {CSV_INVENTORY_PATH}")
 
-logger.info(f"✅ Using testbed file: {TESTBED_PATH}")
+# Log dependency availability
+if not GENIE_AVAILABLE:
+    logger.warning("Genie parser not available, command parsing will be limited")
+if not PYDANTIC_AVAILABLE:
+    logger.warning("Pydantic not available, using basic input validation")
+if not MCP_AVAILABLE:
+    logger.warning("MCP not available, using mock server for testing")
 
 # --- Pydantic Models for Input Validation ---
 class DeviceCommandInput(BaseModel):
@@ -50,17 +107,18 @@ class LinuxCommandInput(BaseModel):
 # --- Core pyATS Helper Functions ---
 
 def _get_device(device_name: str):
-    """Helper to load testbed and get/connect to a device."""
+    """Helper to load device from CSV and get/connect to it."""
     try:
-        testbed = loader.load(TESTBED_PATH)
-        device = testbed.devices.get(device_name)
-        if not device:
-            raise ValueError(f"Device '{device_name}' not found in testbed '{TESTBED_PATH}'.")
-
+        # Load device info from CSV
+        device_row = load_device_from_csv(device_name)
+        
+        # Create and connect to device
+        device = connect_to_device(device_row)
+        
         if not device.is_connected():
             logger.info(f"Connecting to {device_name}...")
             device.connect(
-                connection_timeout=120,
+                connection_timeout=device_row.get('timeout', 120),
                 learn_hostname=True,
                 log_stdout=False,
                 mit=True
@@ -294,13 +352,9 @@ def _execute_linux_command(device_name: str, command: str) -> Dict[str, Any]:
     """Synchronous helper for Linux command execution."""
     device = None
     try:
-        logger.info("Loading testbed...")
-        testbed = loader.load(TESTBED_PATH)
-        
-        if device_name not in testbed.devices:
-            return {"status": "error", "error": f"Device '{device_name}' not found in testbed."}
-        
-        device = testbed.devices[device_name]
+        # Load device info from CSV and connect
+        device_row = load_device_from_csv(device_name)
+        device = connect_to_device(device_row)
         
         if not device.is_connected():
             logger.info(f"Connecting to {device_name} via SSH...")
@@ -311,12 +365,15 @@ def _execute_linux_command(device_name: str, command: str) -> Dict[str, Any]:
             command = f'sh -c "{command}"'
         
         try:
-            parser = get_parser(command, device)
-            if parser:
-                logger.info(f"Parsing output for command: {command}")
-                output = device.parse(command)
+            if GENIE_AVAILABLE:
+                parser = get_parser(command, device)
+                if parser:
+                    logger.info(f"Parsing output for command: {command}")
+                    output = device.parse(command)
+                else:
+                    raise ValueError("No parser available")
             else:
-                raise ValueError("No parser available")
+                raise ValueError("Genie parser not available")
         except Exception as e:
             logger.warning(f"No parser found for command: {command}. Using `execute` instead. Error: {e}")
             output = device.execute(command)
