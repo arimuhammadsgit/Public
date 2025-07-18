@@ -49,6 +49,11 @@ except ImportError:
             
         def configure(self, config):
             return f"Mock config applied: {config}"
+            
+        def enable(self):
+            """Mock enable method for privilege escalation."""
+            logger.info(f"Mock enable on {self.name}")
+            return "Mock enable successful"
     
     Device = MockDevice
     loader = None

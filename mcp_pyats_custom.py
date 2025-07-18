@@ -90,18 +90,18 @@ if not MCP_AVAILABLE:
 
 # --- Pydantic Models for Input Validation ---
 class DeviceCommandInput(BaseModel):
-    device_name: str = Field(..., description="The name of the device in the testbed.")
+    device_name: str = Field(..., description="The name of the device in the CSV inventory.")
     command: str = Field(..., description="The command to execute (e.g., 'show ip interface brief', 'ping 8.8.8.8').")
 
 class ConfigInput(BaseModel):
-    device_name: str = Field(..., description="The name of the device in the testbed.")
+    device_name: str = Field(..., description="The name of the device in the CSV inventory.")
     config_commands: str = Field(..., description="Single or multi-line configuration commands.")
 
 class DeviceOnlyInput(BaseModel):
-    device_name: str = Field(..., description="The name of the device in the testbed.")
+    device_name: str = Field(..., description="The name of the device in the CSV inventory.")
 
 class LinuxCommandInput(BaseModel):
-    device_name: str = Field(..., description="The name of the Linux device in the testbed.")
+    device_name: str = Field(..., description="The name of the Linux device in the CSV inventory.")
     command: str = Field(..., description="Linux command to execute (e.g., 'ifconfig', 'ls -l /home')")
 
 # --- Core pyATS Helper Functions ---
@@ -403,7 +403,7 @@ async def pyats_run_show_command(device_name: str, command: str) -> str:
     Execute a Cisco IOS/NX-OS 'show' command on a specified device.
     
     Args:
-        device_name: The name of the device in the testbed
+        device_name: The name of the device in the CSV inventory
         command: The show command to execute (e.g., 'show ip interface brief')
     
     Returns:
@@ -422,7 +422,7 @@ async def pyats_configure_device(device_name: str, config_commands: str) -> str:
     Apply configuration commands to a Cisco IOS/NX-OS device.
     
     Args:
-        device_name: The name of the device in the testbed
+        device_name: The name of the device in the CSV inventory
         config_commands: Configuration commands to apply (can be multi-line)
     
     Returns:
@@ -441,7 +441,7 @@ async def pyats_show_running_config(device_name: str) -> str:
     Retrieve the running configuration from a Cisco IOS/NX-OS device.
     
     Args:
-        device_name: The name of the device in the testbed
+        device_name: The name of the device in the CSV inventory
     
     Returns:
         JSON string containing the running configuration
@@ -459,7 +459,7 @@ async def pyats_show_logging(device_name: str) -> str:
     Retrieve recent system logs from a Cisco IOS/NX-OS device.
     
     Args:
-        device_name: The name of the device in the testbed
+        device_name: The name of the device in the CSV inventory
     
     Returns:
         JSON string containing the recent logs
@@ -477,7 +477,7 @@ async def pyats_ping_from_network_device(device_name: str, command: str) -> str:
     Execute a ping command from a Cisco IOS/NX-OS device.
     
     Args:
-        device_name: The name of the device in the testbed
+        device_name: The name of the device in the CSV inventory
         command: The ping command to execute (e.g., 'ping 8.8.8.8')
     
     Returns:
@@ -496,7 +496,7 @@ async def pyats_run_linux_command(device_name: str, command: str) -> str:
     Execute a Linux command on a specified device.
     
     Args:
-        device_name: The name of the Linux device in the testbed
+        device_name: The name of the Linux device in the CSV inventory
         command: The Linux command to execute (e.g., 'ifconfig', 'ps -ef')
     
     Returns:
