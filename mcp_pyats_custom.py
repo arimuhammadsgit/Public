@@ -16,6 +16,7 @@ import asyncio
 from functools import partial
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
+from helpers.inventory_loader import load_device_from_csv, connect_to_device
 
 # --- Basic Logging Setup ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -50,24 +51,12 @@ class LinuxCommandInput(BaseModel):
 # --- Core pyATS Helper Functions ---
 
 def _get_device(device_name: str):
-    """Helper to load testbed and get/connect to a device."""
+    """Helper to load device using inventory loader and get/connect to a device."""
     try:
-        testbed = loader.load(TESTBED_PATH)
-        device = testbed.devices.get(device_name)
-        if not device:
-            raise ValueError(f"Device '{device_name}' not found in testbed '{TESTBED_PATH}'.")
-
-        if not device.is_connected():
-            logger.info(f"Connecting to {device_name}...")
-            device.connect(
-                connection_timeout=120,
-                learn_hostname=True,
-                log_stdout=False,
-                mit=True
-            )
-            logger.info(f"Connected to {device_name}")
-
-        return device
+        device_row = load_device_from_csv(device_name)
+        conn = connect_to_device(device_row)
+        conn.connect()
+        return conn
 
     except Exception as e:
         logger.error(f"Error getting/connecting to device {device_name}: {e}", exc_info=True)
@@ -294,13 +283,9 @@ def _execute_linux_command(device_name: str, command: str) -> Dict[str, Any]:
     """Synchronous helper for Linux command execution."""
     device = None
     try:
-        logger.info("Loading testbed...")
-        testbed = loader.load(TESTBED_PATH)
-        
-        if device_name not in testbed.devices:
-            return {"status": "error", "error": f"Device '{device_name}' not found in testbed."}
-        
-        device = testbed.devices[device_name]
+        logger.info("Loading device using inventory loader...")
+        device_row = load_device_from_csv(device_name)
+        device = connect_to_device(device_row)
         
         if not device.is_connected():
             logger.info(f"Connecting to {device_name} via SSH...")
@@ -311,7 +296,7 @@ def _execute_linux_command(device_name: str, command: str) -> Dict[str, Any]:
             command = f'sh -c "{command}"'
         
         try:
-            parser = get_parser(command, device)
+            parser = get_parser(command, device.device)  # Use underlying device for parser
             if parser:
                 logger.info(f"Parsing output for command: {command}")
                 output = device.parse(command)
