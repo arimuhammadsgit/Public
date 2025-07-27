@@ -107,14 +107,21 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 			if objectID.HasParent(propertyMappingEntry.OID) {
 				switch propertyMappingEntry.Field {
 				case "address":
-					// Store the IP address part
-					ipAddr := string(value.Index)
+					// Convert IP address bytes to dotted decimal notation
+					var ipAddr string
+					if indexBytes, ok := value.Index.([]byte); ok && len(indexBytes) == 4 {
+						ipAddr = fmt.Sprintf("%d.%d.%d.%d", indexBytes[0], indexBytes[1], indexBytes[2], indexBytes[3])
+					} else {
+						// Fallback to string conversion if not byte array
+						ipAddr = fmt.Sprintf("%v", value.Index)
+					}
+					
 					if ipAddress.Address != nil && strings.HasPrefix(*ipAddress.Address, "/") {
 						// We already have a prefix, combine with IP
 						x := fmt.Sprintf("%s%s", ipAddr, *ipAddress.Address)
 						ipAddress.Address = &x
 					} else {
-						// Just store the IP for now, will add prefix later or default to /32
+						// Just store the IP for now, will add prefix later
 						ipAddress.Address = &ipAddr
 					}
 					fieldFound = true
