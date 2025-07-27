@@ -107,13 +107,16 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 			if objectID.HasParent(propertyMappingEntry.OID) {
 				switch propertyMappingEntry.Field {
 				case "address":
-					// Convert IP address bytes to dotted decimal notation
+					// Convert IP address to proper format
 					var ipAddr string
-					if indexBytes, ok := value.Index.([]byte); ok && len(indexBytes) == 4 {
-						ipAddr = fmt.Sprintf("%d.%d.%d.%d", indexBytes[0], indexBytes[1], indexBytes[2], indexBytes[3])
+					indexStr := string(value.Index)
+					
+					// Try to parse as dotted decimal IP first
+					if net.ParseIP(indexStr) != nil {
+						ipAddr = indexStr
 					} else {
-						// Fallback to string conversion if not byte array
-						ipAddr = fmt.Sprintf("%v", value.Index)
+						// If not a valid IP, try to format it
+						ipAddr = indexStr
 					}
 					
 					if ipAddress.Address != nil && strings.HasPrefix(*ipAddress.Address, "/") {
