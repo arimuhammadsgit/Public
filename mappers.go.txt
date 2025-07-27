@@ -202,6 +202,12 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 	}
 
 	if fieldFound {
+		// If we have an IP address but no prefix, add default /32
+		if ipAddress.Address != nil && !strings.Contains(*ipAddress.Address, "/") {
+			x := fmt.Sprintf("%s/32", *ipAddress.Address)
+			ipAddress.Address = &x
+		}
+		
 		m.applyDefaults(&ipAddress, defaults)
 		if ipAddress.Address != nil {
 			m.logger.Debug("Successfully mapped IP address", "address", *ipAddress.Address)
