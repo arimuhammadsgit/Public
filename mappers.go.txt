@@ -111,12 +111,18 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 					var ipAddr string
 					indexStr := string(value.Index)
 					
-					m.logger.Debug("Processing IP address", "indexStr", indexStr, "rawIndex", value.Index)
+					m.logger.Debug("Processing IP address", "indexStr", indexStr, "rawIndex", value.Index, "valueType", fmt.Sprintf("%T", value.Index), "value", value.Value)
 					
-					// Try to parse as dotted decimal IP first
-					if net.ParseIP(indexStr) != nil {
+					// For SNMP IP addresses, the actual IP is usually in value.Value, not value.Index
+					if value.Value != "" && net.ParseIP(value.Value) != nil {
+						// Use the value if it's a valid IP - this is the most common case
+						ipAddr = value.Value
+						m.logger.Debug("Using IP from value.Value", "ip", ipAddr)
+					} else if indexStr != "" && net.ParseIP(indexStr) != nil {
+						// Use the index if it's a valid IP (fallback)
 						ipAddr = indexStr
-					} else {
+						m.logger.Debug("Using IP from value.Index", "ip", ipAddr)
+					} else if indexStr != "" {
 						// Handle case where indexStr might be in a different format
 						// For SNMP, IP addresses are often encoded as OID components
 						// Try to split by dots and convert to IP if it looks like OID format
@@ -136,18 +142,26 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 								}
 								if allNumbers && len(ipParts) == 4 {
 									ipAddr = strings.Join(ipParts, ".")
+									m.logger.Debug("Constructed IP from parts", "parts", parts, "ip", ipAddr)
 								} else {
 									ipAddr = indexStr
+									m.logger.Debug("Could not parse as IP parts, using raw", "ip", ipAddr)
 								}
 							} else {
 								ipAddr = indexStr
+								m.logger.Debug("Not 4 parts, using raw", "parts", len(parts), "ip", ipAddr)
 							}
 						} else {
 							ipAddr = indexStr
+							m.logger.Debug("No dots found, using raw", "ip", ipAddr)
 						}
+					} else {
+						// Both index and value are problematic
+						m.logger.Warn("Could not extract IP address", "index", indexStr, "value", value.Value)
+						continue
 					}
 					
-					m.logger.Debug("Converted IP address", "original", indexStr, "converted", ipAddr)
+					m.logger.Debug("Final converted IP address", "original_index", indexStr, "original_value", value.Value, "converted", ipAddr)
 					
 					if ipAddress.Address != nil && strings.HasPrefix(*ipAddress.Address, "/") {
 						// We already have a prefix, combine with IP
