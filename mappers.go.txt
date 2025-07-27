@@ -111,13 +111,43 @@ func (m *IPAddressMapper) Map(values map[ObjectIDIndex]*ObjectIDValue, mappingEn
 					var ipAddr string
 					indexStr := string(value.Index)
 					
+					m.logger.Debug("Processing IP address", "indexStr", indexStr, "rawIndex", value.Index)
+					
 					// Try to parse as dotted decimal IP first
 					if net.ParseIP(indexStr) != nil {
 						ipAddr = indexStr
 					} else {
-						// If not a valid IP, try to format it
-						ipAddr = indexStr
+						// Handle case where indexStr might be in a different format
+						// For SNMP, IP addresses are often encoded as OID components
+						// Try to split by dots and convert to IP if it looks like OID format
+						if strings.Contains(indexStr, ".") {
+							parts := strings.Split(indexStr, ".")
+							if len(parts) == 4 {
+								// Try to convert each part to a number and format as IP
+								var ipParts []string
+								allNumbers := true
+								for _, part := range parts {
+									if num, err := strconv.Atoi(part); err == nil && num >= 0 && num <= 255 {
+										ipParts = append(ipParts, part)
+									} else {
+										allNumbers = false
+										break
+									}
+								}
+								if allNumbers && len(ipParts) == 4 {
+									ipAddr = strings.Join(ipParts, ".")
+								} else {
+									ipAddr = indexStr
+								}
+							} else {
+								ipAddr = indexStr
+							}
+						} else {
+							ipAddr = indexStr
+						}
 					}
+					
+					m.logger.Debug("Converted IP address", "original", indexStr, "converted", ipAddr)
 					
 					if ipAddress.Address != nil && strings.HasPrefix(*ipAddress.Address, "/") {
 						// We already have a prefix, combine with IP
